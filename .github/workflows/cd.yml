@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify with tests
+        run: go test ./...
+
+      - name: Build release binaries
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/cicd-demo-linux-amd64 ./cmd/cicd-demo
+          GOOS=darwin GOARCH=amd64 go build -o dist/cicd-demo-darwin-amd64 ./cmd/cicd-demo
+          GOOS=windows GOARCH=amd64 go build -o dist/cicd-demo-windows-amd64.exe ./cmd/cicd-demo
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
