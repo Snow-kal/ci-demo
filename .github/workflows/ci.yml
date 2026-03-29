@@ -1,5 +1,9 @@
+# 工作流名称，会显示在 GitHub Actions 页面中。
 name: CI
 
+# 触发条件：
+# 1) 代码 push 到 main 分支
+# 2) 发起或更新目标为 main 的 Pull Request
 on:
   push:
     branches:
@@ -8,22 +12,30 @@ on:
     branches:
       - main
 
+# CI 只需要读取仓库内容，不需要写权限，遵循最小权限原则。
 permissions:
   contents: read
 
 jobs:
+  # 定义一个作业：执行代码质量检查、测试和构建验证。
   test-and-build:
+    # 在 GitHub 提供的 Ubuntu 最新镜像上运行。
     runs-on: ubuntu-latest
     steps:
+      # 拉取仓库源码到 Runner，后续步骤才能访问代码。
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 安装 Go 环境，版本由 go.mod 中的声明决定。
+      # cache: true 会缓存依赖，提高后续运行速度。
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
+      # 用 gofmt 检查所有 Go 文件是否格式统一。
+      # 发现未格式化文件则主动失败，阻止不规范代码进入主分支。
       - name: Check formatting
         run: |
           unformatted=$(gofmt -l .)
@@ -33,11 +45,14 @@ jobs:
             exit 1
           fi
 
+      # 运行静态分析，提前发现常见代码问题。
       - name: Vet code
         run: go vet ./...
 
+      # 运行单元测试，并输出覆盖率文件供后续分析使用。
       - name: Run unit tests
         run: go test ./... -coverprofile=coverage.out
 
+      # 验证项目可成功编译，避免“测试过了但无法构建”的情况。
       - name: Build project
         run: go build ./...
